@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-secret
+type: Opaque
+stringData:
+  username: user
+  password: password
+  connection-string: amqp://user:password@rabbitmq.default.svc.cluster.local:5672
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: # Metadati del deployment
+  name: rabbitmq
+spec:
+  replicas: 1
+  selector: # Selettore per il deployment
+    matchLabels:
+      app: rabbitmq
+  template: 
+    metadata: # Metadati del pod
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          env: # Credenziali di acesso a RabbitMQ
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: username
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: password

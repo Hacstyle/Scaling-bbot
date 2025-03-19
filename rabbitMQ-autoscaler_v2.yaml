@@ -1,0 +1,34 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-trigger-auth-rabbitmq
+  namespace: default
+spec:
+  secretTargetRef: # riferimento al secret
+    - parameter: host
+      name: rabbitmq-secret
+      key: connection-string
+
+---
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: rabbitmq-autoscaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: bbot # Nome del deployment del bbot
+  pollingInterval: 1 # Intervallo della verifica della coda
+  cooldownPeriod: 10 # Tempo di attesa prima dello scale-down
+  minReplicaCount: 0 # Repliche minime
+  maxReplicaCount: 10 # Repliche massime
+  triggers:
+    - type: rabbitmq
+      metadata:
+        protocol: amqp
+        queueName: command-queue
+        mode: QueueLength
+        value: "1" # Valore di soglia
+      authenticationRef: # Riferimento all'autenticazione
+        name: keda-trigger-auth-rabbitmq

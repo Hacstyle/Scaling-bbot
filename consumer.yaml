@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consumer-script
+data:
+  consumer.py: |
+    import pika
+    import subprocess
+    import sys
+
+    def receive_message(host, port, queue_name, username, password):
+        """Riceve messaggi dalla coda RabbitMQ, un messaggio alla volta."""
+        credentials = pika.PlainCredentials(username, password)
+        parameters = pika.ConnectionParameters(host, port, credentials=credentials)
+
+        try:
+            connection = pika.BlockingConnection(parameters)
+            print(" [x] Connessione a RabbitMQ eseguita")
+            sys.stdout.flush()
+
+            channel = connection.channel()
+            channel.queue_declare(queue=queue_name)
+            print(f" [x] Coda '{queue_name}' dichiarata")
+            sys.stdout.flush()
+
+            def callback(ch, method, properties, body):
+                command = body.decode()
+                print(f" [x] Comando ricevuto: '{command}'")
+                sys.stdout.flush()
+                try:
+                    result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+                    if result.stdout:
+                        print(f" [x] Output del comando: {result.stdout}")
+                        sys.stdout.flush()
+                    if result.stderr:
+                        print(" [x] Errori del comando:")
+                        sys.stdout.flush()
+                    print(" [x] Comando eseguito con successo")
+                    sys.stdout.flush()
+
+                except subprocess.CalledProcessError as e:
+                    print(f" [x] Errore durante l'esecuzione del comando: {e}")
+                    print(f" [x] Output dell'errore: {e.stderr}")
+                    sys.stdout.flush()
+                except FileNotFoundError:
+                    print(f" [x] Comando non trovato: {command}")
+                    sys.stdout.flush()
+                except Exception as e:
+                    print(f" [x] Errore inaspettato durante l'esecuzione del comando: {e}")
+                    sys.stdout.flush()
+
+                print(" [x] Fatto")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+
+            channel.basic_qos(prefetch_count=1)
+            channel.basic_consume(queue=queue_name, on_message_callback=callback)
+
+            print(' [*] In attesa di messaggi. Per uscire premi CTRL+C')
+            sys.stdout.flush()
+            channel.start_consuming()
+        except Exception as e:
+            print(f"Errore di connessione: {e}")
+            sys.stdout.flush()
+
+
+    if __name__ == "__main__":
+        rabbitmq_host = 'rabbitmq.default.svc.cluster.local'
+        rabbit_port = 5672 
+        rabbitmq_queue = 'command-queue'
+        rabbitmq_username = 'user'
+        rabbitmq_password = 'password'
+
+        receive_message(rabbitmq_host, rabbit_port, rabbitmq_queue, rabbitmq_username, rabbitmq_password)

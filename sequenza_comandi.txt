@@ -1,0 +1,9 @@
+minikube start
+minikube addons enable metrics-server
+kubectl apply -f rabbitmq-deployment.yaml
+kubectl apply -f rabbitmq-service.yaml
+kubectl apply -f consumer.yaml
+kubectl apply -f bbot-deployment.yaml
+kubectl apply --server-side keda-2.16.1.yaml 
+kubectl apply -f rabbitmq-autoscaler_v2.yaml
+kubectl port-forward service/rabbitmq 5672:5672

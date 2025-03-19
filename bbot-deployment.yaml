@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: # Metadati del deployment
+  name: bbot
+spec:
+  replicas: 1
+  selector: # Selettore per il deployment
+    matchLabels:
+      app: bbot
+  template:
+    metadata: # Metadati del pod
+      labels:
+        app: bbot
+    spec:
+      containers:
+      - name: bbot
+        image: blacklanternsecurity/bbot:stable
+        command: ["/bin/bash", "-c", "pip install pika && python /app/consumer.py"]
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        volumeMounts: # Mount per il deployment
+        - name: consumer-volume
+          mountPath: /app
+      volumes: # Volumi per il deployment
+      - name: consumer-volume
+        configMap: # ConfigMap per il deployment
+          name: consumer-script
+  
